@@ -111,7 +111,8 @@ ADR_STATE receive_state = ADR_IDLE;
 /***********************************************************************************************************************
 ; L O C A L   F U N C T I O N S
 ;---------------------------------------------------------------------------------------------------------------------*/
-UNSIGNED_8 map(UNSIGNED_8 x, UNSIGNED_8 in_min, UNSIGNED_8 in_max, UNSIGNED_8 out_min, UNSIGNED_8 out_max) {
+UNSIGNED_8 map(UNSIGNED_8 x, UNSIGNED_8 in_min, UNSIGNED_8 in_max, UNSIGNED_8 out_min, UNSIGNED_8 out_max) 
+{
     return (UNSIGNED_8) (((float) (x - in_min)*(out_max - out_min)) / ((float) (in_max - in_min) + out_min));
 }
 /**********************************************************************************************************************/
@@ -124,7 +125,7 @@ void timer_tick(void) {
     counter_sensor++;
     counter_px_wait++;
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripInit(void) {
     UNSIGNED_16 address = 0x0000;
     address = DIA_MUI;
@@ -157,24 +158,24 @@ void AppStripInit(void) {
     //Set ISL83483 Drive enable pin as output
     DrvGpioInitPin(PORT_A, 2, PIN_IO_FUNC_OUTPUT_LOW);
 }
-
 /*--------------------------------------------------------------------------------------------------------------------*/
 DEVICE_STATE AppStripGetState(void) {
     return device_state;
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripSetGreen(void) {
     DrvPwmStart(pwm_grn, 255);
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripHandler(void) {
     static UNSIGNED_8 data = 0x00;
     static UNSIGNED_8 i = 0;
 
     //Serial Communication
-    if (DrvSciReadData(&data)) {
-        switch (device_state) {
-
+    if (DrvSciReadData(&data)) 
+    {
+        switch (device_state) 
+        {
             case DEVICE_NO_ADR:
                 switch (publish_confirm_state) {
                     case NO_ADR_IDLE:
@@ -219,7 +220,7 @@ void AppStripHandler(void) {
                         else if (data == MUX_PX_GET)
                             receive_state = ADR_RECEIVED_PX_GET;
                         else if (data == MUX_REFAB)
-                            receive_state = ADR_REFAB;
+                            receive_state = ADR_RECEIVED_REFAB;
                         break;
                     case ADR_RECEIVED_PX_CONFIG:
                         receive_state = (data == stair_adr) ? ADR_CORRECT_PX_CONFIG : ADR_IDLE;
@@ -229,6 +230,9 @@ void AppStripHandler(void) {
                         break;
                     case ADR_RECEIVED_COLOR_SET:
                         receive_state = (data == stair_adr) ? ADR_CORRECT_COLOR_SET : ADR_IDLE;
+                        break;
+                    case ADR_RECEIVED_REFAB:
+                        receive_state = (data == stair_adr) ? ADR_CORRECT_REFAB : ADR_IDLE;
                         break;
                     case ADR_CORRECT_PX_CONFIG:
                         i++;
@@ -253,36 +257,40 @@ void AppStripHandler(void) {
                     case ADR_CORRECT_COLOR_SET:
                         i++;
                         if (i == 1) {
-                            //DrvPwmDutycycleUpdate(pwm_whi, data);
-                            DrvPwmDutycycleUpdate(pwm_whi, map(data, 0, 255, 0, 100));
+                            DrvPwmDutycycleUpdate(pwm_whi, data);
+                            //DrvPwmDutycycleUpdate(pwm_whi, map(data, 0, 255, 0, 100));
                         }
                         if (i == 2) {
-                            //DrvPwmDutycycleUpdate(pwm_red, data);
-                            DrvPwmDutycycleUpdate(pwm_red, map(data, 0, 255, 0, 100));
+                            DrvPwmDutycycleUpdate(pwm_red, data);
+                            //DrvPwmDutycycleUpdate(pwm_red, map(data, 0, 255, 0, 100));
                         }
                         if (i == 3) {
-                            //DrvPwmDutycycleUpdate(pwm_grn, data);
-                            DrvPwmDutycycleUpdate(pwm_grn, map(data, 0, 255, 0, 100));
+                            DrvPwmDutycycleUpdate(pwm_grn, data);
+                            //DrvPwmDutycycleUpdate(pwm_grn, map(data, 0, 255, 0, 100));
                         }
                         if (i == 4) {
-                            //DrvPwmDutycycleUpdate(pwm_blu, data);
-                            DrvPwmDutycycleUpdate(pwm_blu, map(data, 0, 255, 0, 100));
-                            receive_state = ADR_IDLE;
+                            DrvPwmDutycycleUpdate(pwm_blu, data);
+                            //DrvPwmDutycycleUpdate(pwm_blu, map(data, 0, 255, 0, 100));
+                            receive_state = ADR_CRC;
                             i = 0;
                         }
                         break;
-                    case ADR_REFAB:         //Reset to factory settings
-                        DrvNVM_erase_config(0x8000);
-                        AppStripInit();
+                    case ADR_CORRECT_REFAB:         //Reset to factory settings
+                        if(data == 0x55)
+                        {
+                            DrvNVM_erase_config(0x8000);
+                            AppStripInit();
+                        }
+                        break;
+                    case ADR_CRC:           //Check for CRC
+                        receive_state = ADR_IDLE;
                         break;
                 }
                 break;
         }
     }
 }
-
 /*--------------------------------------------------------------------------------------------------------------------*/
-
 void AppStripPXGet(UNSIGNED_8 *address, UNSIGNED_8 movement) {
     UNSIGNED_8 write_data[3];
     write_data[0] = MUX_PX_SET;
@@ -293,10 +301,9 @@ void AppStripPXGet(UNSIGNED_8 *address, UNSIGNED_8 movement) {
 
     DrvSciWriteData(write_data, 3);
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripTimerTick() {
     SIGNED_16 slope = 0;
-
 
     // Na 20 timer interrupts (2s) stuur publish op bus
     if (counter_publish >= 20 && device_state == DEVICE_NO_ADR) {
@@ -339,7 +346,7 @@ void AppStripTimerTick() {
         counter_sensor = 0;
     }
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripPublish(UNSIGNED_8 *mui, BOOLEAN error, BOOLEAN config) {
     UNSIGNED_8 write_data[11]; //| Byte 0: 0x00 | Byte 1-9 | Byte 10: Error/config, see paper
 
@@ -355,10 +362,7 @@ void AppStripPublish(UNSIGNED_8 *mui, BOOLEAN error, BOOLEAN config) {
 /*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripSensorIsr(void) {
     sensordata = TRUE;
-
-
 }
-
 /*--------------------------------------------------------------------------------------------------------------------*/
 void AppStripClearGPIO(void) {
     DrvGpioInitPin(PORT_A, 4, PIN_IO_FUNC_OUTPUT_LOW);
@@ -369,7 +373,7 @@ void AppStripClearGPIO(void) {
     //Testing: Set uart TX pin output
     DrvGpioInitPin(PORT_C, 5, PIN_IO_FUNC_OUTPUT_LOW);
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void AppDrvTxHandler(void) {
     DrvTxHandler();
 }

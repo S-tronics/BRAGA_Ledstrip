@@ -59,7 +59,9 @@ typedef enum {
     ADR_CORRECT_PX_GET,
     ADR_RECEIVED_COLOR_SET,
     ADR_CORRECT_COLOR_SET,
-    ADR_REFAB,
+    ADR_RECEIVED_REFAB,
+    ADR_CORRECT_REFAB,
+    ADR_CRC,
 }
 ADR_STATE;
 /**********************************************************************************************************************/

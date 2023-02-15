@@ -222,7 +222,7 @@ void DrvPwmStop(DRVPWM_DRV_HNDL hndl) {
     *drv_ptr->pwm_ctrl_reg &= ~0x80; //Enable PWM-CH
 
 }
-
+/*--------------------------------------------------------------------------------------------------------------------*/
 void DrvPwmDutycycleUpdate(DRVPWM_DRV_HNDL hndl, UNSIGNED_16 dc) {
     DRVPWM_DRV_PROPS* ch_ptr = &drvpwmchannel[hndl];
     PWM_DRV* drv_ptr = &drvpwmdrv[ch_ptr->ch];
